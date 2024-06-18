@@ -1,42 +1,96 @@
-name: CI
+name: Build Kivy APK
+
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+    - name: Checkout code
+      uses: actions/checkout@v2
 
-      #used to cache dependencies with a timeout
-      - name: Get Date
-        id: get-date
-        run: |
-          echo "::set-output name=date::$(/bin/date -u "+%Y%m%d")"
-        shell: bash
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
 
-      - name: Cache Buildozer global directory
-        uses: actions/cache@v2
-        with:
-          path: .buildozer_global
-          key: buildozer-global-${{ hashFiles('buildozer.spec') }} # Replace with your path
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install buildozer
+        sudo apt-get install -y \
+          python3-dev \
+          openjdk-8-jdk \
+          unzip \
+          zlib1g-dev \
+          libncurses5-dev \
+          libffi-dev \
+          libgmp-dev \
+          autoconf \
+          automake \
+          libtool \
+          curl \
+          git \
+          openssl \
+          libssl-dev \
+          make \
+          g++ \
+          pkg-config \
+          lib32z1 \
+          lib32ncurses5 \
+          libbz2-1.0 \
+          libstdc++6 \
+          gcc \
+          build-essential \
+          ccache \
+          lib32stdc++6 \
+          libreadline-dev \
+          libsqlite3-dev \
+          libpng-dev \
+          libfreetype6-dev \
+          libblas-dev \
+          liblapack-dev \
+          libatlas-base-dev \
+          libopenblas-dev \
+          python3-pil \
+          libjpeg-dev \
+          libtiff5-dev \
+          libsdl2-dev \
+          libsdl2-image-dev \
+          libsdl2-mixer-dev \
+          libsdl2-ttf-dev \
+          libportmidi-dev \
+          libsdl2-gfx-dev \
+          libsdl2-net-dev
 
-      - uses: actions/cache@v2
-        with:
-          path: .buildozer
-          key: ${{ runner.os }}-${{ steps.get-date.outputs.date }}-${{ hashFiles('buildozer.spec') }}
+    - name: Install Buildozer
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential ccache git libncurses5:i386 libstdc++6:i386 zlib1g:i386 openjdk-8-jdk unzip
 
-      - name: Build with Buildozer
-        uses: ArtemSBulgakov/buildozer-action@v1
-        id: buildozer
-        with:
-          command: buildozer android debug
-          buildozer_version: stable
+    - name: Install Android SDK and NDK
+      run: |
+        mkdir -p ~/.buildozer/android/platform/android-sdk
+        cd ~/.buildozer/android/platform/android-sdk
+        wget https://dl.google.com/android/repository/commandlinetools-linux-6609375_latest.zip
+        unzip commandlinetools-linux-6609375_latest.zip
+        mkdir -p cmdline-tools/latest
+        mv cmdline-tools/* cmdline-tools/latest/
+        yes | ./cmdline-tools/latest/bin/sdkmanager --licenses
+        ./cmdline-tools/latest/bin/sdkmanager "platforms;android-29" "build-tools;29.0.3" "ndk;21.3.6528147" "platform-tools"
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v2
-        with:
-          name: package
-          path: ${{ steps.buildozer.outputs.filename }}
+    - name: Build APK
+      run: buildozer -v android debug
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v2
+      with:
+        name: myapp
+        path: bin/*.apk
