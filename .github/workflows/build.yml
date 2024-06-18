@@ -44,7 +44,6 @@ jobs:
           g++ \
           pkg-config \
           lib32z1 \
-          lib32ncurses5 \
           libbz2-1.0 \
           libstdc++6 \
           gcc \
